@@ -1,8 +1,8 @@
-FROM continuumio/miniconda3
+FROM ubuntu:22.04
 
 ARG DEBIAN_FRONTEND="noninteractive"
 RUN apt update && apt upgrade -y \
-&&  apt install -y python3-pip python3 python-dev \
+&&  apt install -y python3-pip python3.10 python3.10-dev \
 &&  apt install -y default-libmysqlclient-dev pkg-config \
 # clean up image
 &&  apt clean \
