@@ -10,15 +10,15 @@ services:
       - 5000:5000
     restart: always
     depends_on:
-      - mysql
-      - minio
+      mysql:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
     environment:
       MLFLOW_S3_ENDPOINT_URL: http://minio:9000
       AWS_ACCESS_KEY_ID: minio-access-key
       AWS_SECRET_ACCESS_KEY: minio-secret-key
-    command: mlflow server --backend-store-uri 'mysql://mlflowuser:mlflowpassword@mysql:3306/mlflowdb' --default-artifact-root 's3://default/' --host 0.0.0.0 --port 5000
-    volumes:
-      - mlflow:/var/mlflow
+    command: mlflow server --backend-store-uri 'mysql://mlflowuser:mlflowpassword@mysql:3306/mlflowdb' --default-artifact-root 's3://default/' --serve-artifacts --artifacts-destination 's3://default/' --host 0.0.0.0 --port 5000
     networks:
       - nginx_network
 
@@ -34,6 +34,11 @@ services:
     volumes:
       - mysql:/var/lib/mysql
       - ./timeout.cnf:/etc/mysql/conf.d/timeout.cnf
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot-password"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - nginx_network
 
@@ -42,13 +47,19 @@ services:
     image: minio/minio
     ports:
       - 9000:9000
+      - 9001:9001
     restart: always
     volumes:
      - minio1:/export
     environment:
-      MINIO_ACCESS_KEY: minio-access-key
-      MINIO_SECRET_KEY: minio-secret-key
-    command: server /export
+      MINIO_ROOT_USER: minio-access-key
+      MINIO_ROOT_PASSWORD: minio-secret-key
+    command: server /export --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - nginx_network
 
@@ -72,6 +83,5 @@ networks:
     driver: bridge
 
 volumes:
-  mlflow:
   minio1:
   mysql:
